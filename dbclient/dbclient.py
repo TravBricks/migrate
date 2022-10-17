@@ -309,19 +309,30 @@ class dbclient:
                                   'permission_level': permissions})
                 if permissions == 'IS_OWNER':
                     current_owner = member.get('user_name')
-            else:
+            elif 'group_name' in member:
                 if member.get('group_name') != 'admins':
                     acls_list.append({'group_name': member.get('group_name'),
                                       'permission_level': permissions})
-                    if permissions == 'IS_OWNER':
-                        current_owner = member.get('group_name')
+                    if is_jobs == False:
+                        if permissions == 'IS_OWNER':
+                            current_owner = member.get('group_name')
+            else: # service_principal_name' in member
+                acls_list.append({'service_principal_name': member.get('service_principal_name'),
+                                  'permission_level': permissions})
+                if permissions == 'IS_OWNER':
+                    current_owner = member.get('service_principal_name')
 
         if is_jobs:
             me = self.whoami()
-            if current_owner != me:
+            if current_owner != me: # when current owner is NOT SPN, demote SPN to CAN_MANAGE
                 update_admin = {'user_name': self.whoami(),
                                 'permission_level': 'CAN_MANAGE'}
                 acls_list.append(update_admin)
+
+            if current_owner == '': # Ensure IS_OWNER always exists.
+                print("dbclient:build_acl_args - IS_OWNER NOT SET - Defaulting to SPN=IS_OWNER")
+                acls_list.append({'service_principal_name': self.whoami(),
+                                  'permission_level': 'IS_OWNER'})
         return acls_list
 
     def set_export_dir(self, dir_location):
